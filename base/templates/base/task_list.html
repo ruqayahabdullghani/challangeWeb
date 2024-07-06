@@ -1,0 +1,88 @@
+{% extends 'base/main.html' %}
+{% block content %}
+
+<div class="header-bar">
+    <div>
+        <h1>Hello {{request.user|title}}</h1>
+        <h3 style="margin:0">You have <i>{{count}}</i> incomplete task{{ count|pluralize:"s" }}</h3>
+    </div>
+
+    {% if request.user.is_authenticated %}
+    <form method="POST" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="button">Logout</button>
+    </form>
+    {% else %}
+    <a href="{% url 'login' %}">Login</a>
+    {% endif %}
+</div>
+
+<div id="search-add-wrapper">
+    <form method="GET" style="display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <input type="text" name="search-area" placeholder="Search your task" value="{{search_input}}">
+            <input class="button" type="submit" value="Search">
+
+            {% if tasks|length > 0 %}
+            <a id="add-link" href="{% url 'task-create' %}">&#x2b;Add</a>
+            {% endif %}
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <select name="filter-status" onchange="this.form.submit()" class="buttonS">
+                <option value="all" {% if filter_status == 'all' %}selected{% endif %}>All</option>
+                <option value="complete" {% if filter_status == 'complete' %}selected{% endif %}>Complete</option>
+                <option value="incomplete" {% if filter_status == 'incomplete' %}selected{% endif %}>Incomplete</option>
+            </select>
+        
+        </div>
+    </form>
+</div>
+
+<div id="tasklist" class="task-items-wrapper">
+    {% for task in tasks %}
+    <div class="task-wrapper" data-position="{{task.pk}}" onclick="toggleTaskStatus({{ task.pk }})">
+        <div class="task-title">
+            {% if task.complete %}
+            <div class="task-complete-icon"></div>
+            <i><s><a>{{task}}</a></s></i> 
+            {% else %}
+            <div class="task-incomplete-icon"></div>
+            <a>{{task}}</a> 
+            {% endif %}
+        </div>
+        <div class="task-controls">
+            <a class="delete-link" href="{% url 'task-delete' task.id %}">&#215;</a>
+            <a href="{% url 'task-update' task.id %}" class="handle"> <i class="fas fa-edit"></i> </a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; padding-bottom: 10px; line-height: 1em;">
+        <h3>No new tasks are created.</h3>
+        <h3>Create a <a style="text-decoration: underline; color: #000; " href="{% url 'task-create' %}">New task</a>!</h3>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function toggleTaskStatus(taskId) {
+    fetch(`/task-toggle/${taskId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const taskWrapper = document.querySelector(`.task-wrapper[data-position='${taskId}']`);
+            const taskTitle = taskWrapper.querySelector('.task-title');
+            taskTitle.innerHTML = data.complete ? `<div class="task-complete-icon"></div><i><s><a>${taskTitle.textContent}</a></s></i>` : `<div class="task-incomplete-icon"></div><a>${taskTitle.textContent}</a>`;
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script>
+
+{% endblock content %}
